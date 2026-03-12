@@ -1,0 +1,65 @@
+
+
+services:
+  postgres-db:
+    image: postgres:16
+    container_name: ssrp-postgres
+    environment:
+      POSTGRES_DB: ssrp_db
+      POSTGRES_USER: ssrp_user
+      POSTGRES_PASSWORD: ssrp_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - ssrp-postgres-data:/var/lib/postgresql/data
+    networks:
+      - ssrp-net
+
+  python-ml-service:
+    build:
+      context: ./ml-service
+      dockerfile: Dockerfile
+    container_name: ssrp-ml-service
+    ports:
+      - "5000:5000"
+    networks:
+      - ssrp-net
+
+  springboot-backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ssrp-backend
+    depends_on:
+      - postgres-db
+      - python-ml-service
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-db:5432/ssrp_db
+      SPRING_DATASOURCE_USERNAME: ssrp_user
+      SPRING_DATASOURCE_PASSWORD: ssrp_password
+      SSRP_ML_SERVICE_BASE_URL: http://python-ml-service:5000
+    ports:
+      - "8080:8080"
+    networks:
+      - ssrp-net
+
+  react-frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: ssrp-frontend
+    environment:
+      VITE_BACKEND_URL: http://springboot-backend:8080/api
+    ports:
+      - "3000:80"
+    depends_on:
+      - springboot-backend
+    networks:
+      - ssrp-net
+
+networks:
+  ssrp-net:
+
+volumes:
+  ssrp-postgres-data:
+
